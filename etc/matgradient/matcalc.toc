@@ -1,0 +1,31 @@
+\contentsline {section}{\numberline {1}Introduction and Motivation}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Why Matrix Calculus?}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}A Quick Example in Words}{3}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Part I: Fundamentals of Matrix Calculus}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Notation and Shapes}{3}{subsection.2.1}%
+\contentsline {paragraph}{Vectors and Matrices.}{3}{section*.3}%
+\contentsline {paragraph}{Differentiation.}{3}{section*.4}%
+\contentsline {paragraph}{Common Conventions.}{3}{section*.5}%
+\contentsline {subsection}{\numberline {2.2}Basic Principles}{4}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Scalar-by-Vector Differentiation}{4}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Scalar-by-Matrix Differentiation}{4}{subsubsection.2.2.2}%
+\contentsline {paragraph}{Example: Frobenius Norm.}{4}{section*.6}%
+\contentsline {subsubsection}{\numberline {2.2.3}Matrix-by-Matrix Differentiation}{4}{subsubsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.3}Chain Rule for Matrices}{4}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Part II: Illustrative Examples}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Example 1: A Simple Linear Function}{5}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Coordinate Expansion}{5}{subsubsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.2}Example 2: Squared Error Loss, Single Layer}{5}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Chain Rule Computation}{5}{subsubsection.3.2.1}%
+\contentsline {paragraph}{Interpretation.}{6}{section*.7}%
+\contentsline {subsection}{\numberline {3.3}Example 3: A Matrix-Valued Output}{6}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Part III: Matrix Gradients in Deep Learning}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Forward Pass Recap}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Backward Pass: Matrix Gradient Computation}{6}{subsection.4.2}%
+\contentsline {paragraph}{Key Takeaway.}{7}{section*.8}%
+\contentsline {subsection}{\numberline {4.3}Tying Back to Examples}{7}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Part IV: Advanced Notes and Best Practices}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Notation Systems}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Higher-Order Tensors}{8}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Practical Tips}{8}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Conclusion and References}{8}{section.6}%

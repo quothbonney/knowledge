@@ -1,0 +1,511 @@
+\documentclass[11pt]{article}
+
+% ------------------------------------------------
+% PACKAGES
+% ------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{mathtools}
+\usepackage{lipsum}  % for dummy text
+\usepackage{enumitem}
+\usepackage{titling}
+
+% ------------------------------------------------
+% CUSTOM COMMANDS
+% ------------------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\DeclareMathOperator{\diag}{diag}
+
+% ------------------------------------------------
+% TITLE / AUTHOR
+% ------------------------------------------------
+\title{\textbf{Matrix Calculus}}
+\author{Jack David Carson}
+\date{\today}
+
+% ------------------------------------------------
+% BEGIN DOCUMENT
+% ------------------------------------------------
+\begin{document}
+
+\maketitle
+\tableofcontents
+\vspace{1cm}
+
+\section*{Preface}
+Matrix calculus plays an essential role in deep learning and related areas of machine learning. 
+From basic linear regression to multi-layer neural networks, 
+gradient-based optimization underlies most modern techniques. 
+This document aims to provide a \emph{compact but intensive} treatment of matrix calculus, 
+focusing on \emph{how} and \emph{why} to compute gradients with respect to matrix-shaped parameters, 
+both in theory and practice.
+
+We assume readers have some familiarity with basic linear algebra (matrix multiplication, vector spaces) 
+and multivariable calculus (partial derivatives, chain rule). 
+That said, we start at fundamentals and build up to more advanced examples. 
+
+The structure is as follows:
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Part I: Fundamentals.} We clarify the notation and essential concepts of matrix calculus, 
+    including scalar-by-matrix derivatives and matrix-by-matrix derivatives.
+
+    \item \textbf{Part II: Illustrative Examples.} 
+    We work through classical examples (e.g.\ linear layers, squared-error losses) and see 
+    step-by-step partial derivatives. 
+
+    \item \textbf{Part III: Deep Learning Context.} 
+    We tie these derivations to backpropagation in neural networks, 
+    showing how the same rules apply repeatedly in a chain of transformations.
+
+    \item \textbf{Part IV: Advanced Notes.} Some advanced remarks on notation systems, 
+    higher-dimensional tensors, and best practices.
+
+    \item \textbf{Appendices.} Additional resources, references, and recommended reading. 
+\end{itemize}
+
+\newpage
+
+\section{Introduction and Motivation}
+Gradient-based methods power the vast majority of modern machine learning, 
+from linear and logistic regression up to large transformer-based language models. 
+At their core lies \emph{matrix calculus}, 
+the field that generalizes partial derivatives to matrix or tensor functions.
+
+\subsection{Why Matrix Calculus?}
+In traditional calculus, we often see a scalar function $f(x)$, 
+where $x \in \R$, and $\frac{df}{dx}$ is a single derivative. 
+When $x \in \R^n$, the gradient $\nabla_x f$ becomes an $n$-dimensional vector, 
+collecting all partial derivatives. 
+However, in deep learning, parameters typically live in matrices or higher-order tensors. 
+Hence we need to carefully define and compute partial derivatives \emph{with respect to} matrix entries.
+
+One might flatten matrices into vectors and proceed with standard multivariable calculus. 
+Indeed, frameworks like \texttt{PyTorch} or \texttt{TensorFlow} internally store parameters 
+as 1D memory arrays. But mathematically, it is often more transparent to \emph{retain the shape}, 
+because each row and column in your weight matrix can have distinct roles (e.g.\ each row might correspond to a neuron).
+
+\subsection{A Quick Example in Words}
+Consider a simple single-layer neural network with weight matrix $W$. 
+Our network output is $y = W x$ for an input vector $x$. 
+If the loss is the mean squared error versus a target $t$, 
+the gradient $\nabla_W L$ needs to tell us:
+\emph{“How does each entry $W_{ij}$ of $W$ affect the final loss $L$?”}
+We will see that the derivative is $(Wx - t) x^\mathsf{T}$ in matrix form. 
+This document explains \emph{why} and \emph{how} this arises, 
+and how it generalizes to deeper or more nonlinear models.
+
+\section{Part I: Fundamentals of Matrix Calculus}
+\label{sec:fundamentals}
+
+In this section, we provide a thorough introduction to matrix calculus. 
+We start with notation and the definition of partial derivatives when inputs and outputs are matrices or vectors, 
+then move on to some essential identities.
+
+\subsection{Notation and Shapes}
+\label{sec:notation}
+
+\paragraph{Vectors and Matrices.}
+We typically denote vectors by bold lowercase letters (e.g.\ $\mathbf{x} \in \R^n$) 
+and matrices by uppercase letters (e.g.\ $A \in \R^{m \times n}$). 
+The entry in row $i$ and column $j$ of $A$ is $A_{ij}$. 
+
+\paragraph{Differentiation.}
+When we write $\frac{\partial f}{\partial x}$ for $f : \R^n \to \R$, 
+we mean the gradient (an $n$-dimensional vector). 
+When $f : \R^{m \times n} \to \R$, i.e.\ $f$ is a real-valued function of a matrix $A \in \R^{m \times n}$, 
+$\frac{\partial f}{\partial A}$ is an $m \times n$ matrix whose $(i,j)$-th entry is 
+$\frac{\partial f}{\partial A_{ij}}$.
+
+Similarly, if we have a matrix-valued function $F(A) \in \R^{p \times q}$ of $A \in \R^{m \times n}$, 
+its “gradient” with respect to $A$ is a 4D array (or “4D tensor”) 
+collecting all partial derivatives $\frac{\partial F_{ab}}{\partial A_{ij}}$. 
+In practice, we usually flatten or otherwise reshape these for computational convenience.
+
+\paragraph{Common Conventions.}
+Some references (e.g.\ machine learning frameworks) adopt a “row-major” or “column-major” flattening by default. 
+Moreover, you may see small differences in notation, such as $\nabla_{A} f$ vs.\ $\partial f / \partial A$. 
+We will use them interchangeably when the context is clear.
+
+\subsection{Basic Principles}
+
+\subsubsection{Scalar-by-Vector Differentiation}
+Recall that if $f(\mathbf{x})$ is a scalar function of a vector $\mathbf{x} \in \R^n$, 
+then the gradient is defined component-wise:
+\[
+(\nabla_{\mathbf{x}} f)_i \;=\; \frac{\partial f}{\partial x_i}.
+\]
+If $\mathbf{y} = A \mathbf{x}$, we also have the familiar result 
+$\frac{\partial \mathbf{y}}{\partial \mathbf{x}} = A$, 
+where the shape of $\frac{\partial \mathbf{y}}{\partial \mathbf{x}}$ is $(m \times n)$ if $A$ is $(m \times n)$.
+
+\subsubsection{Scalar-by-Matrix Differentiation}
+Let $f : \R^{m \times n} \to \R$. 
+Then the gradient $\nabla_A f$ (also written $\frac{\partial f}{\partial A}$) 
+is the $m \times n$ matrix of partial derivatives:
+\[
+(\nabla_A f)_{ij} 
+\;=\; 
+\frac{\partial f}{\partial A_{ij}}.
+\]
+To compute $\nabla_A f$ in practice, 
+\emph{expand $f$ in terms of the entries of $A$}, 
+then differentiate with respect to each $A_{ij}$. 
+
+\paragraph{Example: Frobenius Norm.}
+As a quick example, if $f(A) = \frac12 \|A\|_F^2 = \frac12 \sum_{i,j} A_{ij}^2$, 
+then 
+\[
+\frac{\partial f}{\partial A_{ij}} = A_{ij},
+\]
+so $\frac{\partial f}{\partial A} = A$ (in shape $m \times n$).
+
+\subsubsection{Matrix-by-Matrix Differentiation}
+
+When the output is also a matrix, say $F(A) \in \R^{p \times q}$, 
+we define the \emph{Jacobian tensor} $\frac{\partial F}{\partial A}$ 
+whose entries are 
+\[
+\frac{\partial F_{ab}}{\partial A_{ij}}
+\quad
+\text{for all } a=1,\dots,p,\; b=1,\dots,q,\; i=1,\dots,m,\; j=1,\dots,n.
+\]
+This collection can be viewed as a 4D object in $\R^{p \times q \times m \times n}$. 
+In many settings (e.g.\ neural network backprop), we do not keep a 4D array explicitly, 
+but reason about transformations and chain rules in terms of smaller building blocks.
+
+\subsection{Chain Rule for Matrices}
+\label{sec:chainrule}
+
+A crucial tool is the chain rule. 
+If $Z = g(A)$ is an intermediate matrix, and $f(Z)$ is a scalar function, 
+then by chain rule:
+\[
+\frac{\partial f}{\partial A_{ij}}
+\;=\;
+\sum_{p,q} \frac{\partial f}{\partial Z_{pq}} \,\frac{\partial Z_{pq}}{\partial A_{ij}}.
+\]
+We will use this extensively when $A$ is a parameter matrix and $Z$ is some layer output or residual.
+
+\vspace{1cm}
+\section{Part II: Illustrative Examples}
+\label{sec:examples}
+
+In this section, we ground the definitions and rules of matrix calculus 
+with step-by-step concrete examples. 
+These examples reflect common patterns in deep learning.
+
+\subsection{Example 1: A Simple Linear Function}
+
+Let $A \in \R^{m \times n}$ and vectors $x \in \R^n, y \in \R^m$. 
+Define a scalar
+\[
+f(A) \;=\; y^\mathsf{T} \, A \, x.
+\]
+We wish to compute $\nabla_A f$. 
+
+\subsubsection{Coordinate Expansion}
+Write $f(A)$ as
+\[
+f(A) 
+\;=\;
+\sum_{i=1}^m \sum_{j=1}^n
+y_i \, A_{ij} \, x_j.
+\]
+Then
+\[
+\frac{\partial f}{\partial A_{ij}}
+\;=\;
+y_i \, x_j.
+\]
+Hence the gradient matrix $\nabla_A f$ (of size $m \times n$) is 
+\[
+\nabla_A f 
+\;=\;
+y \, x^\mathsf{T}.
+\]
+In a deep-learning context, if $A$ were a weight matrix, 
+this example corresponds to the derivative of a single “dot-product” output 
+with respect to $A$. 
+
+\subsection{Example 2: Squared Error Loss, Single Layer}
+\label{sec:example-squared-loss}
+
+Suppose we have:
+\[
+L(W) 
+\;=\; 
+\tfrac12 \, \bigl\| W\,x \;-\; t \bigr\|^2,
+\]
+where $W \in \R^{m \times n}$, $x \in \R^n$, and $t \in \R^m$.  
+Let $r = W x - t$ be the residual.  
+Then 
+\[
+L(W) \;=\; \tfrac12 \, \sum_{i=1}^m (r_i)^2,
+\quad
+\text{where}
+\quad
+r_i \;=\; \sum_{j=1}^n W_{ij}\, x_j \;-\; t_i.
+\]
+
+\subsubsection{Chain Rule Computation}
+By direct differentiation:
+\[
+\frac{\partial L}{\partial W_{ij}}
+\;=\;
+\left( \frac{\partial}{\partial W_{ij}} \tfrac12 \sum_{p=1}^m r_p^2 \right)
+\;=\;
+\sum_{p=1}^m r_p \,\frac{\partial r_p}{\partial W_{ij}}.
+\]
+But $r_p$ depends on $W_{ij}$ \emph{only} if $p = i$. Thus
+\[
+\frac{\partial r_p}{\partial W_{ij}}
+\;=\;
+\begin{cases}
+x_j, & \text{if }p=i,\\
+0,   & \text{otherwise}.
+\end{cases}
+\]
+Hence
+\[
+\frac{\partial L}{\partial W_{ij}}
+\;=\;
+r_i \, x_j.
+\]
+Rewriting in matrix form:
+\[
+\nabla_W L 
+\;=\;
+(W x - t)\, x^\mathsf{T}.
+\]
+
+\paragraph{Interpretation.}
+In neural network terms, 
+this says that the gradient at $W_{ij}$ (the connection from $x_j$ into the $i$-th output neuron) 
+depends on how large the $i$-th residual $r_i$ is, times the input $x_j$. 
+This exactly matches the usual backprop intuition: 
+the error signal at neuron $i$ times the value of input $j$ 
+drives the update direction for $W_{ij}$.
+
+\subsection{Example 3: A Matrix-Valued Output}
+Sometimes, the output itself is a matrix. 
+For instance, if $R \in \R^{m \times n}$, we might define $F(R) = R^\mathsf{T} R$. 
+Then $F(R) \in \R^{n \times n}$. 
+Its $(p,q)$-th entry is 
+\[
+F(R)_{pq} \;=\; \sum_{i=1}^m R_{i p} \, R_{i q}.
+\]
+The “gradient” with respect to $R$ is a 4D array 
+\(\frac{\partial F_{pq}}{\partial R_{ij}}\). 
+Typically, we flatten or otherwise keep track of each entry’s dependence 
+when applying chain rules in a larger computation graph. 
+
+\vspace{1cm}
+\section{Part III: Matrix Gradients in Deep Learning}
+\label{sec:deep-learning-context}
+
+We now connect these ideas to the forward and backward pass of a (simplified) deep neural network. 
+Matrix gradients appear at every layer, because the weights are naturally stored as matrices.
+
+\subsection{Forward Pass Recap}
+A typical layer in a neural network transforms an input $\mathbf{z}^{(\ell-1)}$ into 
+\[
+\mathbf{z}^{(\ell)} 
+\;=\; 
+\sigma\!\bigl(W^{(\ell)} \,\mathbf{z}^{(\ell-1)} + \mathbf{b}^{(\ell)}\bigr),
+\]
+where $W^{(\ell)} \in \R^{m \times n}$, $\mathbf{b}^{(\ell)} \in \R^m$, 
+and $\sigma(\cdot)$ is a nonlinear activation (e.g.\ ReLU, sigmoid, etc.). 
+The forward pass uses these weight matrices $W^{(\ell)}$ to map from layer $\ell - 1$ to layer $\ell$.
+
+If we have $L$ layers, the final output might be $\mathbf{z}^{(L)}$. 
+Then we define a scalar loss function $L\bigl(\mathbf{z}^{(L)}, \text{target}\bigr)$.
+
+\subsection{Backward Pass: Matrix Gradient Computation}
+To train via gradient-based methods (e.g.\ stochastic gradient descent), 
+we need $\nabla_{W^{(\ell)}} L$ for each layer $\ell$. 
+That is exactly a \emph{matrix} of partial derivatives:
+\[
+(\nabla_{W^{(\ell)}} L)_{ij}
+\;=\;
+\frac{\partial L}{\partial W^{(\ell)}_{ij}}.
+\]
+We apply the chain rule repeatedly:
+\begin{align*}
+\frac{\partial L}{\partial W^{(\ell)}_{ij}}
+&=\;
+\sum_{p=1}^m
+\frac{\partial L}{\partial z^{(\ell)}_{p}} \,
+\frac{\partial z^{(\ell)}_{p}}{\partial W^{(\ell)}_{ij}}.
+\end{align*}
+But $z^{(\ell)}_p = \sigma\bigl(\underbrace{[W^{(\ell)} \,\mathbf{z}^{(\ell-1)} + \mathbf{b}^{(\ell)}]}_{u^{(\ell)}}\bigr)_p$, 
+where $u^{(\ell)}_p = \sum_k W^{(\ell)}_{p,k}\,z^{(\ell-1)}_k + b^{(\ell)}_p$. 
+
+For typical elementwise nonlinear $\sigma$, 
+\[
+\frac{\partial z^{(\ell)}_{p}}{\partial W^{(\ell)}_{ij}}
+\;=\;
+\sigma'\bigl(u^{(\ell)}_p\bigr)\,
+\frac{\partial u^{(\ell)}_p}{\partial W^{(\ell)}_{ij}}.
+\]
+Further, 
+\[
+\frac{\partial u^{(\ell)}_p}{\partial W^{(\ell)}_{ij}}
+\;=\;
+\begin{cases}
+z^{(\ell-1)}_j, &\text{if }p = i,\\
+0, &\text{otherwise}.
+\end{cases}
+\]
+Putting it all together yields
+\[
+\frac{\partial z^{(\ell)}_{p}}{\partial W^{(\ell)}_{ij}}
+\;=\;
+\delta_{p,i}\;\sigma'(u^{(\ell)}_p)\;z^{(\ell-1)}_j,
+\]
+where $\delta_{p,i}$ is the Kronecker delta (1 if $p=i$, else 0). 
+
+Hence
+\[
+\frac{\partial L}{\partial W^{(\ell)}_{ij}}
+\;=\;
+\frac{\partial L}{\partial z^{(\ell)}_{i}}\;
+\sigma'(u^{(\ell)}_i)\;
+z^{(\ell-1)}_j.
+\]
+Defining the \emph{backpropagated signal} 
+$\delta^{(\ell)}_i = \frac{\partial L}{\partial z^{(\ell)}_{i}}\;\sigma'(u^{(\ell)}_i)$, 
+we can write
+\[
+\nabla_{W^{(\ell)}} L
+\;=\;
+\delta^{(\ell)}\,\bigl(z^{(\ell-1)}\bigr)^\mathsf{T},
+\]
+analogous to our earlier examples: $(\mathbf{r})\,(\mathbf{x})^\mathsf{T}$.
+
+\paragraph{Key Takeaway.}
+Each row $i$ of $W^{(\ell)}$ gets multiplied by the $i$-th component of the backpropagated error $\delta^{(\ell)}$, 
+and each column $j$ gets multiplied by the corresponding component of the input $z_j^{(\ell-1)}$. 
+Hence the gradient is the outer product of \emph{error signals} and \emph{input activations}. 
+
+\subsection{Tying Back to Examples}
+Compare this to the squared-error example (\S\ref{sec:example-squared-loss}), 
+where $\delta = (Wx - t)$ took the role of the error signal, 
+and $x$ was the input. 
+Everything generalizes seamlessly once you realize the shape of partial derivatives 
+is always an outer product in linear layers---plus a factor from the derivative of nonlinearities.
+
+\vspace{1cm}
+\section{Part IV: Advanced Notes and Best Practices}
+\label{sec:advanced-notes}
+
+This section comments on more nuanced aspects of matrix calculus, 
+including different notational systems, higher-order tensors, and practical tips.
+
+\subsection{Notation Systems}
+Different fields use slightly different notation conventions for matrix calculus. 
+Three common ones are:
+\begin{enumerate}
+    \item \textbf{Numerical / Flattening Convention:} 
+    Flatten all matrices/vectors into 1D arrays, 
+    then treat everything as standard multivariable calculus. 
+    This is how many software libraries implement automatic differentiation internally.
+
+    \item \textbf{Denominator Layout vs.\ Numerator Layout:} 
+    Some authors define the gradient as the transpose of what others might define. 
+    For instance, in neural networks, we often write $\nabla_x f$ as a column vector by default, 
+    whereas some references might stack partial derivatives in a row vector. 
+    Always confirm which layout is being used.
+
+    \item \textbf{Index Notation / Einstein Summation:} 
+    In physics or more mathematically rigorous treatments, index notation is used heavily: 
+    $A_{ij} B_{jk} = C_{ik}$. 
+    It can streamline the chain rule but often looks intimidating to beginners.
+\end{enumerate}
+
+Overall, the \emph{results} are the same. 
+In a single project, it is best to fix one approach and stay consistent.
+
+\subsection{Higher-Order Tensors}
+Many deep learning frameworks extend beyond $\R^{m\times n}$ to 4D or 5D tensors, 
+especially for convolutional layers (where weights are $[ \text{filters} \times \text{channels} \times \text{height} \times \text{width} ]$). 
+Conceptually, each dimension just adds another index to partial derivatives. 
+The chain rule is unaffected in principle, though it can be more unwieldy to write by hand. 
+Automatic differentiation tools handle these higher-order derivatives seamlessly.
+
+\subsection{Practical Tips}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Use Vectorized Expressions.} 
+    In actual code, keep shapes explicit but exploit matrix operations to speed up computations (e.g.\ use BLAS libraries).
+
+    \item \textbf{Check Gradients Numerically.} 
+    When implementing new architectures, it is prudent to verify by finite differences 
+    that your analytical gradients match the numerical approximations. 
+    This is often done on small “toy” inputs to confirm correctness.
+
+    \item \textbf{Keep Track of Shapes.} 
+    Most dimension errors come from mixing up row vs.\ column vectors 
+    or reversing the shape of a weight matrix. 
+    Write out shape diagrams to avoid confusion.
+
+    \item \textbf{Leverage Automatic Differentiation.} 
+    While matrix calculus is vital for conceptual understanding, 
+    we often let frameworks like \texttt{PyTorch}, \texttt{TensorFlow}, \texttt{JAX}, or \texttt{Autograd} 
+    perform the actual gradient computations. 
+    Knowing the math ensures you can debug or design new operations correctly.
+\end{itemize}
+
+\vspace{1cm}
+\section{Conclusion and References}
+\label{sec:conclusion}
+
+Matrix calculus is the bedrock of gradient-based optimization in machine learning. 
+We have seen how the concept of partial derivatives naturally extends to matrices: 
+the gradient of a scalar function with respect to a matrix is another matrix of matching shape, 
+and matrix-by-matrix derivatives lead to higher-dimensional arrays. 
+Key formulas (like $\nabla_W \tfrac12 \|W x - t\|^2 = (W x - t)\,x^\mathsf{T}$) 
+reveal patterns repeated throughout neural networks (outer products between error signals and activations). 
+Understanding these step-by-step derivations provides the insight behind 
+the backpropagation algorithm and helps debug dimensional misalignments or design new architectures.
+
+\subsection*{Recommended Reading}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{Matrix Differential Calculus with Applications to Statistics and Econometrics}, Magnus and Neudecker.
+    \item \textbf{Deep Learning}, Goodfellow, Bengio, and Courville 
+    (especially the chapters on backprop and optimization).
+    \item Online Resources, e.g.\ 
+    \href{https://explained.ai/matrix-calculus/}{Matrix Calculus Explained}, 
+    or the \texttt{cs231n} \emph{Convolutional Neural Networks for Visual Recognition} notes 
+    for step-by-step gradient derivations.
+    \item Official documentations of \texttt{PyTorch}, \texttt{TensorFlow}, or \texttt{JAX} 
+    for examples of automatic differentiation in practice.
+\end{itemize}
+
+\subsection*{Appendix: Symbols and Conventions}
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} \\
+\midrule
+$\mathbf{x}, \mathbf{y}, \mathbf{z}$ & Vectors (bold lowercase) \\
+$A, B, W$ & Matrices (capital letters) \\
+$\nabla_A f$ & Gradient of scalar $f$ wrt matrix $A$ \\
+$\frac{\partial \mathbf{y}}{\partial \mathbf{x}}$ & Jacobian (matrix) when $\mathbf{y}$ is vector-valued \\
+$\sigma(\cdot)$ & Nonlinear activation (ReLU, sigmoid, etc.) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vfill
+
+\begin{center}
+\textbf{End of Document}
+\end{center}
+
+\end{document}
+
