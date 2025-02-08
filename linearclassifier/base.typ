@@ -13,9 +13,9 @@
 
 
 #lecture_notes(
-  "Linear Classifier",
+  "Linear Regression",
   "Jack David Carson",
-  "February 5, 2025",
+  "February 9, 2025",
   [
 
     #definition(title: "Linear Regression")[
